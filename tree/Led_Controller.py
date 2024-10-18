@@ -16,9 +16,9 @@ import board
 import neopixel
 import sys
 
-from coords import gamma_table, coordinates
-
 from Settings import Settings
+
+# from coords import gamma_table, coordinates
 
 # Other Interesting Methods/ Ideas For This File
 #   Color 'Filler' just like turning every led in the strip black, turn the entire strip (or maybe a section) to a given color
@@ -48,6 +48,7 @@ class LedController():
         # Also we will probably want to accept a few different types of values, maybe accept hsv, hue, rgb, hex.
         # We also want a way to adjust gamma so not sure if we want that passed in as a setting, by default, in __init__
         #   but that will just add some conditional logic here.
+        # I think there is probably a "faster" way to translate this array onto our pixels array. Will have to experiment.
         for idx, pixel_val in enumerate(pixel_array):
             self.pixels[idx] = pixel_val
         self.pixels.show()
