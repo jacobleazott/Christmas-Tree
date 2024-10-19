@@ -19,46 +19,35 @@
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 import logging
 import multiprocessing
-import os
-import signal
-import sys
+import numpy as np
 import time
 from rpi_ws281x import PixelStrip, Color
-import queue
 
-from decorators import *
-from Settings import Settings
+from helpers.decorators import *
+from helpers.Settings import Settings
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Basic multithreaded LED controller.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-class LEDController():
+class LEDController(LogAllMethods):
     def __init__(self, refresh_rate_hz=30, logger: logging.Logger=None):
         self.logger = logger if logger is not None else logging.getLogger()
+        self.refresh_rate_hz = refresh_rate_hz
+        self.refresh_interval = 1.0 / self.refresh_rate_hz
         
         self.strip = PixelStrip(Settings.NUM_LEDS, Settings.LED_PIN, Settings.LED_FREQ_HZ, Settings.LED_DMA
                                 , Settings.LED_INVERT, Settings.LED_BRIGHTNESS, Settings.LED_CHANNEL)
         self.strip.begin()
         
         self.update_queue = multiprocessing.Queue(maxsize=Settings.UPDATE_QUEUE_SIZE)
-        self.led_update_process = None
-        self.running = multiprocessing.Value('b', False)
-
-        self.refresh_rate_hz = refresh_rate_hz
-        self.refresh_interval = 1.0 / self.refresh_rate_hz
+        self.led_update_process = multiprocessing.Process(target=self._write_queue_to_leds_process)
+        self.running = multiprocessing.Value('b', True)
         
-    def __enter__(self):
-        self.running.value = True
-        if self.led_update_process is None:
-            self.led_update_process = multiprocessing.Process(target=self._write_queue_to_leds_process)
-            self.led_update_process.start()
-        return self
-    
+        self.led_update_process.start()
+        
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.running.value = False
-        if self.led_update_process is not None:
-            self.led_update_process.join()
-            self.led_update_process = None
+        self.led_update_process.join()
         
         # If you don't empty queues they won't "stop" even when you close them.
         while not self.update_queue.empty():
@@ -73,19 +62,16 @@ class LEDController():
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     def _write_queue_to_leds_process(self) -> None:
-        count = 0
         while self.running.value:
             start_time = time.time()
             data = self.update_queue.get()
             
             for idx in range(Settings.NUM_LEDS):
-                color = Color(*data[idx])  # Assuming pixel_val is (R, G, B)
+                # Assumes color order is (R, G, B). Need to cast to ints from uint8.
+                color = Color(int(data[idx, 0]), int(data[idx, 1]), int(data[idx, 2]))
                 self.strip.setPixelColor(idx, color)
+                
             self.strip.show()
-
-            count += 1
-            print("Hows the COunt?", count, data[Settings.NUM_LEDS+1])
-            
             elapsed_time = time.time() - start_time
             
             if elapsed_time > self.refresh_interval:
@@ -103,11 +89,10 @@ class LEDController():
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     def update_leds(self, led_array: list) -> None:
+        if type(led_array) is list:
+            led_array = np.array(led_array, dtype=np.uint8)
+
         self.update_queue.put(led_array)
-        # x = 100
-        # print(sys.getsizeof(x))
-        # print(sys.getsizeof(led_array))
-        # print("Added element", led_array[Settings.NUM_LEDS+1], self.update_queue.qsize())
-        
+
 
 # FIN ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
