@@ -1,3 +1,4 @@
 #! usr/bin/bash
+export NUM_LEDS=650
 cd /home/pi/Christmas-Tree/Tree/
-sudo python3 grad.py
+sudo python grad.py
