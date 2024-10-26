@@ -70,10 +70,9 @@ class LEDController(LogAllMethods):
                 # Assumes color order is (R, G, B). Need to cast to ints from uint8.
                 color = Color(int(data[idx, 0]), int(data[idx, 1]), int(data[idx, 2]))
                 self.strip.setPixelColor(idx, color)
-                
+            
             self.strip.show()
             elapsed_time = time.time() - start_time
-
             if elapsed_time > self.refresh_interval:
                 self.logger.warning(f"Update took too long. Frame dropped. {elapsed_time:.2f}s")
 

@@ -1,3 +1,5 @@
-#!/usr/bin/bash
-cd /home/$USER/projects/Christmas-Tree/tree/
+#!/bin/bash
+
+export PYTHONPATH=$(pwd)/src:$PYTHONPATH
+cd /home/pi/Christmas-Tree/tree/
 sudo python src/Tree.py
