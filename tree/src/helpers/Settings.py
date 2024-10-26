@@ -13,8 +13,6 @@
 #   individual files for 'magic' numbers that should NEVER change and shouldn't be 'easily' changed through these 
 #   configurations.
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-import board
-import neopixel
 from dataclasses import dataclass
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
