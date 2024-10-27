@@ -1,5 +1,5 @@
 #!/usr/bin/bash
 
 export PYTHONPATH=$(pwd)/src:$PYTHONPATH
-source .venv/bin/activate
+cd /home/$USER/projects/Christmas-Tree/tree/
 sudo python src/Tree.py
