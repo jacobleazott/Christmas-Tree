@@ -87,20 +87,8 @@ class LEDEffects(LogAllMethods):
            step - Basically how 'fast' the effect moves. Needs trial and error.
            width - How "much" of the full color spectrum you see at one time. 
     OUTPUT: NA
-    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
+    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""      
     def rainbow(self, axis:int, step:float, width:float) -> None:
-        height = self.min_and_max[axis][1] - self.min_and_max[axis][0]
-        height_hue_step = 2 * width * ( 360 / height )
-
-        while self.run_effect:
-            for hue_step in range(0, int(height / (2 * width)), int(height * step)):
-                for pixel in range( Settings.NUM_LEDS ):
-                    val = (abs(coordinates[pixel][axis] - hue_step) * height_hue_step) % 360
-                    self.pixel_data[pixel] = CH.hue_to_rgb_corrected(val)
-                self.led_controller.update_leds(self.pixel_data)
-                
-                
-    def rainbow2(self, axis:int, step:float, width:float) -> None:
         height = self.min_and_max[axis][1] - self.min_and_max[axis][0]
         
         hue_step = int(360 * step)

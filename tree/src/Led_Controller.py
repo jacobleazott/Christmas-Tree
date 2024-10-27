@@ -75,7 +75,7 @@ class LEDController(LogAllMethods):
             elapsed_time = time.time() - start_time
             if elapsed_time > self.refresh_interval:
                 self.logger.warning(f"Update took too long. Frame dropped. {elapsed_time:.2f}s")
-
+            
             # Wait for the remaining time to maintain the refresh rate
             time_to_wait = self.refresh_interval - elapsed_time
             if time_to_wait > 0:
