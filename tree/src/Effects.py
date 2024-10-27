@@ -15,15 +15,44 @@
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 import logging
 import math
+import random
 import sys
 import threading
 import time
+
+
+import numpy as np
+import random
+import colorsys
 
 import helpers.Color_Helpers as CH
 from helpers.decorators import *
 from helpers.Settings import Settings
 from coords import coordinates
-from Led_Controller import LEDController
+from Led_Controller import LEDController        
+
+
+def rotate_point(point, angles):
+    # Convert angles from degrees to radians
+    rx, ry, rz = np.radians(angles)
+
+    # Rotation matrices
+    R_x = np.array([[1, 0, 0],
+                    [0, np.cos(rx), -np.sin(rx)],
+                    [0, np.sin(rx), np.cos(rx)]])
+    
+    R_y = np.array([[np.cos(ry), 0, np.sin(ry)],
+                    [0, 1, 0],
+                    [-np.sin(ry), 0, np.cos(ry)]])
+    
+    R_z = np.array([[np.cos(rz), -np.sin(rz), 0],
+                    [np.sin(rz), np.cos(rz), 0],
+                    [0, 0, 1]])
+
+    # Combined rotation matrix
+    R = R_z @ R_y @ R_x
+    return R @ point
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Collection of LED effects and the handler of our LEDController.
@@ -101,6 +130,55 @@ class LEDEffects(LogAllMethods):
                     val = (hue + dis_vals[pixel]) % 360
                     self.pixel_data[pixel] = CH.gamma_correct(hue=val)
                 self.led_controller.update_leds(self.pixel_data)
+                
+#################################################################################
+#################################################################################
+#################################################################################
+   
+    def plane(self, axis: int=0) -> None:
+        fade_values = [0.0] * 650
+        cur_hue = 0
+        coords = coordinates
+        
+        while self.run_effect:
+            cur_hue = random.randint(0, 360) / 360
+            # Random rotation angles
+            random_angles = [random.uniform(0, 360) for _ in range(3)]
+            coords = [rotate_point(np.array(coord), random_angles) for coord in coords]
+
+            min_val = sys.maxsize
+            max_val = -sys.maxsize - 1
+            for elem in coords:
+                min_val = min(min_val, elem[0])
+                max_val = max(max_val, elem[0])
+            
+            
+            for height in range(int(min_val), int(max_val)+200, 10):
+                for pixel in range(Settings.NUM_LEDS):
+                    if coords[pixel][axis] > height and coords[pixel][axis] < height + 50:
+                        fade_values[pixel] = 1.0
+                        
+                    if fade_values[pixel] > 0.001:
+                        fade_values[pixel] = fade_values[pixel] / random.uniform(1.0, 1.3)
+                        r, g, b = colorsys.hsv_to_rgb(cur_hue, 1.0, fade_values[pixel])
+                        rgb = (r * 255, g * 255, b * 255)
+                    else:
+                        fade_values[pixel] = 0.0
+                        rgb = (0, 0, 0)
+
+                    self.pixel_data[pixel] = rgb
+                        
+                self.led_controller.update_leds(self.pixel_data)
+       
+        while any(value > 0.01 for value in fade_values):
+            for pixel in range(Settings.NUM_LEDS):
+                if fade_values[pixel] > 0.01:
+                    fade_values[pixel] = fade_values[pixel] / random.uniform(1.0, 1.2)
+                    r, g, b = colorsys.hsv_to_rgb(cur_hue, 1.0, fade_values[pixel])
+                    self.pixel_data[pixel] = (r * 255, g * 255, b * 255)
+                    
+            self.led_controller.update_leds(self.pixel_data)
+        
                 
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     DESCRIPTION: Changes the entire LED strip to one single color and runs that color through the spectrum. No current

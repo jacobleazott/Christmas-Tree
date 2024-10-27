@@ -56,7 +56,6 @@ OUTPUT:
 def gamma_correct(hue=None, rgb=None):
     if hue is not None:
         # return hue_lookup_table[int(hue % 360)]
-        print(hue)
         return get_gamma_corrected_rgb(hue)
     elif rgb is not None:
         return tuple(rgb_lookup_table[channel][idx] for idx, channel in enumerate(rgb))
