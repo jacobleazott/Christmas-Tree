@@ -23,7 +23,7 @@ class SettingsClass:
     # LED Strip Settings
     LED_PIN: int        = 18        # GPIO pin connected to the pixels (must support PWM or PCM)
     NUM_LEDS: int       = 650       # Number of LED pixels
-    LED_BRIGHTNESS: int = 30        # Brightness of LEDs (0-255)
+    LED_BRIGHTNESS: int = 40        # Brightness of LEDs (0-255)
     LED_FREQ_HZ: int    = 800000    # LED signal frequency in hertz (usually 800kHz)
     LED_DMA: int        = 10        # DMA channel to use for generating signal (try 10)
     LED_INVERT: bool    = False     # True to invert the signal (when using NPN transistor level shift)
@@ -36,6 +36,8 @@ class SettingsClass:
     GAMMA_RED: float    = 2.0       # Gamma correction value for 'red'.
     GAMMA_GREEN: float  = 1.8       # Gamma correction value for 'green'.
     GAMMA_BLUE: float   = 1.9       # Gamma correction value for 'blue'.
+
+    BAD_LEDS: tuple[int] = (395,)    # Tuple of LED's we should never turn on.
 
     # Logging Settings
     FUNCTION_ARG_LOGGING_LEVEL: int = 15
