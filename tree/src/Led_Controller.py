@@ -30,7 +30,7 @@ from helpers.Settings import Settings
 DESCRIPTION: Basic multithreaded LED controller.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 class LEDController(LogAllMethods):
-    def __init__(self, refresh_rate_hz=30, logger: logging.Logger=None):
+    def __init__(self, refresh_rate_hz: int=30, logger: logging.Logger=None):
         self.logger = logger if logger is not None else logging.getLogger()
         self.refresh_rate_hz = refresh_rate_hz
         self.refresh_interval = 1.0 / self.refresh_rate_hz
@@ -78,8 +78,8 @@ class LEDController(LogAllMethods):
             
             self.strip.show()
             elapsed_time = time.time() - start_time
-            # if elapsed_time > self.refresh_interval:
-            #     self.logger.warning(f"Update took too long. Frame dropped. {elapsed_time:.2f}s")
+            if elapsed_time > self.refresh_interval:
+                self.logger.warning(f"Update took too long. Frame dropped. {elapsed_time:.2f}s")
             
             # Wait for the remaining time to maintain the refresh rate
             time_to_wait = self.refresh_interval - elapsed_time
