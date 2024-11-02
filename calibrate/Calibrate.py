@@ -227,9 +227,9 @@ def main():
     # calc_auto_coords()
     # adjust_auto_coordinates()
     
+    print("Done")
     
-
-
+    
 if __name__ == "__main__":
     main()
 

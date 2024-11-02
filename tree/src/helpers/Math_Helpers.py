@@ -1,47 +1,64 @@
 # ╔════╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦═══════╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦════╗
 # ║  ╔═╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩═══════╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩═╗  ║
 # ╠══╣                                                                                                             ╠══╣
-# ║  ║    SETTINGS AND CONSTANTS                   CREATED: 2024-10-17          https://github.com/jacobleazott    ║  ║
+# ║  ║    MATH HELPERS                             CREATED: 2024-11-01          https://github.com/jacobleazott    ║  ║
 # ║══║                                                                                                             ║══║
 # ║  ╚═╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦═══════╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦═╝  ║
 # ╚════╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩═══════╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩════╝
 # ════════════════════════════════════════════════════ DESCRIPTION ════════════════════════════════════════════════════
-# This file solely holds our SettingsClass which is just a collection of "configurable" values that a user of the
-#   project may want to change. It offers a single location for all files to reference. It utilizes a frozen dataclass
-#   which means when we instantiate it as 'Settings' no inheriter can ever change these values. In this way we make a 
-#   common location for immutable settings during runtime. I still leave the discretion to include constants in
-#   individual files for 'magic' numbers that should NEVER change and shouldn't be 'easily' changed through these 
-#   configurations.
+# Various math helpers we use a lot, like rotating points or converting between polar and cartesian.
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-from dataclasses import dataclass
+import math
+import numpy as np
+from numbers import Real
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: Class that holds all of our user configurable settings/ constants for the project.
+DESCRIPTION: Given a single XYZ 'point', rotate it around the origin with XYZ parts of 'angles' 
+INPUT: point - XYZ coord of the point we will be rotating.
+       angles - XYZ rotation degrees we will apply to our 'point'.
+OUTPUT: Rotated XYZ coordiante.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-@dataclass(frozen=True)
-class SettingsClass:
-    # LED Strip Settings
-    LED_PIN: int        = 18        # GPIO pin connected to the pixels (must support PWM or PCM)
-    NUM_LEDS: int       = 650       # Number of LED pixels
-    LED_BRIGHTNESS: int = 40        # Brightness of LEDs (0-255)
-    LED_FREQ_HZ: int    = 800000    # LED signal frequency in hertz (usually 800kHz)
-    LED_DMA: int        = 10        # DMA channel to use for generating signal (try 10)
-    LED_INVERT: bool    = False     # True to invert the signal (when using NPN transistor level shift)
-    LED_CHANNEL: int    = 0         # Channel (default is 0)
-    LED_ORDER: str      = "GRB"     # Pixel color order (typically 'GRB')
+def rotate_point(point: tuple[Real, Real, Real], angles: tuple[Real, Real, Real]) -> tuple[Real, Real, Real]:
+    point = np.array(point)
+    # Convert angles from degrees to radians
+    rx, ry, rz = np.radians(angles)
+
+    # Rotation matrices
+    R_x = np.array([[1, 0, 0]
+                    , [0, np.cos(rx), -np.sin(rx)]
+                    , [0, np.sin(rx), np.cos(rx)]])
     
-    # Internal Implementation Settings
-    UPDATE_QUEUE_SIZE: int = 60     # Number of updates we can "preprocess" before waiting to calculate further
+    R_y = np.array([[np.cos(ry), 0, np.sin(ry)]
+                    , [0, 1, 0]
+                    , [-np.sin(ry), 0, np.cos(ry)]])
     
-    GAMMA_RED: float    = 2.0       # Gamma correction value for 'red'.
-    GAMMA_GREEN: float  = 1.8       # Gamma correction value for 'green'.
-    GAMMA_BLUE: float   = 1.9       # Gamma correction value for 'blue'.
+    R_z = np.array([[np.cos(rz), -np.sin(rz), 0]
+                    , [np.sin(rz), np.cos(rz), 0]
+                    , [0, 0, 1]])
 
-    BAD_LEDS: tuple[int] = (395,)    # Tuple of LED's we should never turn on.
+    # Combined rotation matrix
+    R = R_z @ R_y @ R_x
+    return R @ point
 
-    # Logging Settings
-    FUNCTION_ARG_LOGGING_LEVEL: int = 15
 
-Settings = SettingsClass()
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+DESCRIPTION: Takes a givne list of cartesian 'coords' and converts them into polar coords ignoring the given 'axis'.
+INPUT: coords - XYZ values of our cartestion coordinates we will be converting.
+OUTPUT: 
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+def to_2D_polar_coords(coords: tuple[Real, Real, Real], axis: int = 0) -> list[tuple[Real, Real]]:
+    # Map the axis to the indices of the coordinates to keep
+    axes = {0: (1, 2), 1: (0, 2), 2: (0, 1)}
+    polar_coords = []
+    
+    for coord in coords:
+        u, v = coord[axes[axis][0]], coord[axes[axis][1]]  # Extract u and v based on the ignored axis
+        # Convert (u, v) to polar coordinates
+        r = math.sqrt(u**2 + v**2)
+        theta = math.atan2(v, u)  # Angle in radians
+        theta_degrees = math.degrees(theta)  # Convert angle to degrees
+        polar_coords.append((r, theta_degrees))
+
+    return polar_coords
 
 # FIN ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
