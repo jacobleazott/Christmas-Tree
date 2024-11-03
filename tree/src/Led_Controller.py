@@ -95,7 +95,7 @@ class LEDController(LogAllMethods):
     def update_leds(self, led_array: list) -> None:
         if type(led_array) is list:
             led_array = np.array(led_array, dtype=np.uint8)
-
+            
         self.update_queue.put(led_array)
 
 

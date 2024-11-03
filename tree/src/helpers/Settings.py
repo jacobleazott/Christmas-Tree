@@ -31,7 +31,7 @@ class SettingsClass:
     LED_ORDER: str      = "GRB"     # Pixel color order (typically 'GRB')
     
     # Internal Implementation Settings
-    UPDATE_QUEUE_SIZE: int = 60     # Number of updates we can "preprocess" before waiting to calculate further
+    UPDATE_QUEUE_SIZE: int = 120     # Number of updates we can "preprocess" before waiting to calculate further
     
     GAMMA_RED: float    = 2.0       # Gamma correction value for 'red'.
     GAMMA_GREEN: float  = 1.8       # Gamma correction value for 'green'.

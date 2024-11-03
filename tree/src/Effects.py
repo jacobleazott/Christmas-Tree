@@ -21,6 +21,8 @@ import threading
 import time
 from numbers import Real
 
+import numpy as np
+
 import helpers.Color_Helpers as CH
 import helpers.Math_Helpers as MH
 
@@ -71,9 +73,21 @@ class LEDEffects(LogAllMethods):
     INPUT: axis - X, Y, or Z (0, 1, 2), which axis we will be grabbing the min and max from.
     OUTPUT: Tuple of (min, max) value for the given 'axis'
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    def find_min_max(self, coords: list[list[Real]], axis: int) -> tuple[Real, Real]:
-        axis_coords = [coord[axis] for coord in coords]
-        return min(axis_coords), max(axis_coords)
+    # def find_min_max(self, coords: list[list[Real]], axis: int) -> tuple[Real, Real]:
+    def find_min_max(self, coords, axis):
+        start = time.time()
+        coords_array = np.array(coords, dtype=np.int32)  # Try setting dtype
+        print("\t # Array creation time:", time.time() - start)
+
+        start = time.time()
+        min_val = np.min(coords_array[:, axis])
+        print("\t # Min computation time:", time.time() - start)
+
+        start = time.time()
+        max_val = np.max(coords_array[:, axis])
+        print("\t # Max computation time:", time.time() - start)
+
+        return min_val, max_val
     
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     DESCRIPTION: Turns 'off' all the LEDs ie just sets them all to (0, 0, 0).
@@ -141,27 +155,30 @@ class LEDEffects(LogAllMethods):
         # Values are normalized between 0.0 and 1.0
         hsv_values = [[0.0, 0.0, 0.0]] * Settings.NUM_LEDS
         cur_hue = random.uniform(0.0, 1.0)
-        coords = coordinates
-        
+
         """Helper function to fade, gamma correct, and limit brightness of our LEDs."""
         def _fade_helper():
             for pixel, hsv in enumerate(hsv_values):
-                if hsv[2] > 0.001:
+                if hsv[2] > 0.2:
                     hsv[2] /= random.uniform(1.0, 1.3)  # Apply fade
                     self.pixel_data[pixel] = CH.gamma_correct(hsv=hsv)
                 else: # Reset if too dim
                     hsv_values[pixel] = [0.0, 0.0, 0.0]  
                     self.pixel_data[pixel] = (0, 0, 0)
-
             self.led_controller.update_leds(self.pixel_data)
+
         
         while self.run_effect:
             # Rotate coordinates randomly around three axes
-            random_angles = [random.uniform(0, 360) for _ in range(3)]
-            coords = [MH.rotate_point(coord, random_angles) for coord in coords]
+            random_angles = [random.randint(0, 360) for _ in range(3)]
+            coords = [MH.rotate_point(coord, random_angles) for coord in coordinates]
+            
+            print(self.led_controller.update_queue.qsize())
 
             # Grab min and max along the given axis
             min_val, max_val = self.find_min_max(coords, 0)
+            
+            overall = time.time()
 
             for height in range(int(min_val), int(max_val), step):
                 for pixel in range(Settings.NUM_LEDS):
@@ -172,12 +189,15 @@ class LEDEffects(LogAllMethods):
                             sat_val=1.0, val_val=1.0
                         )) if hsv_values[pixel][2] >= 0.01 else [cur_hue, 1.0, 1.0]
                         
+                        hsv_values[pixel] = [cur_hue, 1.0, 1.0]
                 # Update the pixels and fade values
                 _fade_helper()
             
+            print("TOTAL TIME: ", time.time()-overall)
+            
             # Randomize the hue for the next iteration
             cur_hue = CH.random_hue_away_from(cur_hue)
-
+            
         # Gracefully fade out remaining pixels
         while any(fade[2] > 0.01 for fade in hsv_values):
             _fade_helper()

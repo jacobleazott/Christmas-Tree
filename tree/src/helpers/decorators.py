@@ -61,9 +61,12 @@ def log_func(_func=None):
                     logger_params += [x for x in first_arg.__dict__.values() if isinstance(x, logging.Logger)]
                     
                 logger = next(iter(logger_params))  # get the first logger
-                args_kwargs_sep = ", ".join([repr(a) for a in args] + [f"{k}={v!r}" for k, v in kwargs.items()])
-                logger.log(Settings.FUNCTION_ARG_LOGGING_LEVEL, f"_function {func.__name__} " \
-                                                                f"called with {args_kwargs_sep}")
+                
+                # Only calc args string if we will be doing it.
+                if logger.isEnabledFor(Settings.FUNCTION_ARG_LOGGING_LEVEL):
+                    args_kwargs_sep = ", ".join([repr(a) for a in args] + [f"{k}={v!r}" for k, v in kwargs.items()])
+                    logger.log(Settings.FUNCTION_ARG_LOGGING_LEVEL, f"_function {func.__name__} " \
+                                                                    f"called with {args_kwargs_sep}")
             except Exception:
                 pass
             # Log Any Exceptions

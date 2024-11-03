@@ -20,26 +20,24 @@ OUTPUT: Rotated XYZ coordiante.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def rotate_point(point: tuple[Real, Real, Real], angles: tuple[Real, Real, Real]) -> tuple[Real, Real, Real]:
     point = np.array(point)
+    
     # Convert angles from degrees to radians
     rx, ry, rz = np.radians(angles)
-
-    # Rotation matrices
-    R_x = np.array([[1, 0, 0]
-                    , [0, np.cos(rx), -np.sin(rx)]
-                    , [0, np.sin(rx), np.cos(rx)]])
     
-    R_y = np.array([[np.cos(ry), 0, np.sin(ry)]
-                    , [0, 1, 0]
-                    , [-np.sin(ry), 0, np.cos(ry)]])
+    # Precompute sin and cos values
+    cos_rx, sin_rx = np.cos(rx), np.sin(rx)
+    cos_ry, sin_ry = np.cos(ry), np.sin(ry)
+    cos_rz, sin_rz = np.cos(rz), np.sin(rz)
+
+    # Directly compute the combined rotation matrix R
+    R = np.array([
+        [cos_ry * cos_rz, -cos_ry * sin_rz, sin_ry],
+        [sin_rx * sin_ry * cos_rz + cos_rx * sin_rz, -sin_rx * sin_ry * sin_rz + cos_rx * cos_rz, -sin_rx * cos_ry],
+        [-cos_rx * sin_ry * cos_rz + sin_rx * sin_rz, cos_rx * sin_ry * sin_rz + sin_rx * cos_rz, cos_rx * cos_ry]
+    ])
     
-    R_z = np.array([[np.cos(rz), -np.sin(rz), 0]
-                    , [np.sin(rz), np.cos(rz), 0]
-                    , [0, 0, 1]])
-
-    # Combined rotation matrix
-    R = R_z @ R_y @ R_x
-    return R @ point
-
+    rotated_point = R @ point
+    return np.rint(rotated_point)
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Takes a givne list of cartesian 'coords' and converts them into polar coords ignoring the given 'axis'.
