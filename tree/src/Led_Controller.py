@@ -20,6 +20,7 @@
 import logging
 import multiprocessing
 import numpy as np
+import os
 import time
 from rpi_ws281x import PixelStrip, Color
 
@@ -30,7 +31,7 @@ from helpers.Settings import Settings
 DESCRIPTION: Basic multithreaded LED controller.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 class LEDController(LogAllMethods):
-    def __init__(self, refresh_rate_hz: int=Settings.LED_REFRESH_RATE_HZ, logger: logging.Logger=None):
+    def __init__(self, refresh_rate_hz: int=Settings.LED_FPS, logger: logging.Logger=None):
         self.logger = logger if logger is not None else logging.getLogger()
         self.refresh_rate_hz = refresh_rate_hz
         self.refresh_interval = 1.0 / self.refresh_rate_hz
@@ -86,7 +87,6 @@ class LEDController(LogAllMethods):
             self.strip.show()
             
             elapsed_time = time.time() - start_time
-            print(elapsed_time, self.refresh_interval)
             if elapsed_time > self.refresh_interval:
                 self.logger.warning(f"Update took too long. Frame dropped. {elapsed_time:.2f}s")
             
@@ -98,7 +98,7 @@ class LEDController(LogAllMethods):
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     DESCRIPTION: Puts our 'led_array' onto our 'update_queue' and then checks to see if we should wait before 
                  returning to prevent the caller to overwhelm the controller.
-    INPUT: led_array - List of values for our led strip that we will queue to be updated.
+    INPUT: led_array - Np array of RGB data (can have many frames) for our led strip that we will queue to be updated.
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     def update_leds(self, led_array: np.ndarray) -> None:
@@ -113,5 +113,6 @@ class LEDController(LogAllMethods):
                 self.update_queue.put(frame)
         else:
             raise ValueError("led_array must be a 2D or 3D array representing RGB frames.")
+
 
 # FIN ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════

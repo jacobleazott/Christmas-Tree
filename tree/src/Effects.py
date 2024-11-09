@@ -14,14 +14,9 @@
 #   that should be handled within this class as well.
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 import logging
-import math
-import random
-import sys
+import numpy as np
 import threading
 import time
-from numbers import Real
-
-import numpy as np
 
 import helpers.Color_Helpers as CH
 import helpers.Math_Helpers as MH
@@ -30,7 +25,6 @@ from helpers.decorators import *
 from helpers.Settings import Settings
 from Coords import coordinates
 from Led_Controller import LEDController        
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Collection of LED effects and the handler of our LEDController.
@@ -87,7 +81,7 @@ class LEDEffects(LogAllMethods):
            distance_values - The 'unit' distance each pixel is away from our reference point we animate from.
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    def _rainbow(self, hue_step: int, distance_values: list[Real]) -> None:
+    def _rainbow(self, hue_step: int, distance_values: np.ndarray) -> None:
         step_size = hue_step / 360.0
     
         # Generate all normalized hue values
@@ -113,7 +107,7 @@ class LEDEffects(LogAllMethods):
            width - How "much" of the full color spectrum you see at one time. 
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""      
-    def axis_rainbow(self, axis:int, step:Real, width:Real) -> None:
+    def axis_rainbow(self, axis:int, step:float, width:float) -> None:
         height = self.min_and_max[axis][1] - self.min_and_max[axis][0]
         dis_vals = width * ((coordinates[:, axis] + self.min_and_max[axis][0]) / height)
         
@@ -128,11 +122,28 @@ class LEDEffects(LogAllMethods):
            width - How "much" of the full color spectrum you see at one time. 
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    def radial_rainbow(self, axis:int, step:int, width:Real) -> None:
+    def radial_rainbow(self, axis:int, step:int, width:float) -> None:
         dis_vals = (width * (MH.convert_3D_coords_to_2D_polar(coordinates, axis)[:, 1] / 360.0)) % 1.0
 
         while self.run_effect:
            self._rainbow(step, dis_vals)
+           
+    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
+    DESCRIPTION: Changes the entire LED strip to one single color and runs that color through the spectrum.
+    INPUT: step - How "fast" the animation changes.
+    OUTPUT: NA
+    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
+    def solid_color_rainbow(self, step: int) -> None:
+        while self.run_effect:
+            hues = np.arange(0, 360, step) / 360.0  
+            sv_values = np.ones_like(hues)
+            hsv_values = np.stack((hues, sv_values, sv_values), axis=-1)  # Shape: (num_steps, NUM_LEDS, 3)
+            
+            rgb_frames = CH.hsv_to_rgb_gamma_corrected(hsv_values)
+            rgb_leds = np.transpose(np.tile(rgb_frames, (Settings.NUM_LEDS, 1, 1)), (1, 0, 2)) 
+            
+            # Update the LEDs with the newly calculated pixel data
+            self.led_controller.update_leds(rgb_leds)
 
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     DESCRIPTION: Sweeps a plane across the tree of a random color and random orientation. Also fades the plane as it 
@@ -143,7 +154,7 @@ class LEDEffects(LogAllMethods):
     def random_plane(self, steps: int) -> None:
         # Values are normalized between 0.0 and 1.0
         hsv_values = np.zeros((Settings.NUM_LEDS, 3), dtype=np.float32)
-        target_hsv = np.array([random.uniform(0.0, 1.0), 1.0, 1.0])
+        target_hsv = np.array([np.random.uniform(0.0, 1.0), 1.0, 1.0])
         fade_threshold = 0.1
 
         """Helper function to fade, gamma correct, and limit brightness of our LEDs."""
@@ -185,31 +196,12 @@ class LEDEffects(LogAllMethods):
         # Gracefully fade out remaining pixels
         while any(fade[2] > fade_threshold for fade in hsv_values):
             _fade_helper()
-    
-    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    DESCRIPTION: Changes the entire LED strip to one single color and runs that color through the spectrum.
-    INPUT: step - How "fast" the animation changes.
-    OUTPUT: NA
-    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    def solid_color_rainbow(self, step: int) -> None:
-        while self.run_effect:
-            hues = np.arange(0, 360, step) / 360.0  
-            hsv_values = np.zeros((len(hues), 3), dtype=np.float16)
-            hsv_values[:, 0] = hues  # Hue
-            hsv_values[:, 1] = 1.0   # Saturation (constant)
-            hsv_values[:, 2] = 1.0   # Value (constant)
-            
-            rgb_frames = CH.hsv_to_rgb_gamma_corrected(hsv_values)
-            rgb_leds = np.transpose(np.tile(rgb_frames, (Settings.NUM_LEDS, 1, 1)), (1, 0, 2)) 
-            
-            # Update the LEDs with the newly calculated pixel data
-            self.led_controller.update_leds(rgb_leds)
 
 
 if __name__ == "__main__":
     led_effects = LEDEffects()
     led_effects.turn_off()
-    time.sleep(0.2)
+    time.sleep(1)
 
 
 # FIN ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════

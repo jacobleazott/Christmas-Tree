@@ -8,12 +8,6 @@
 # ════════════════════════════════════════════════════ DESCRIPTION ════════════════════════════════════════════════════
 # Various color helpers to do things like hue -> RGB conversions, gamma correction, and many others.
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-import colorsys
-import math
-import random
-from numbers import Real
-
-import time
 import numpy as np
 
 from helpers.Settings import Settings
@@ -26,48 +20,25 @@ DESCRIPTION: Generates a gamma corrected table for RGB values. The format is a 2
 INPUT: NA
 OUTPUT: RGB lookup table to gamma correct any int rgb tuple.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-# def generate_combined_rgb_lookup() -> list[tuple[Real, Real, Real]]:
-#     return [(int((i / 255.0) ** Settings.GAMMA_RED * 255)
-#              , int((i / 255.0) ** Settings.GAMMA_GREEN * 255)
-#              , int((i / 255.0) ** Settings.GAMMA_BLUE * 255))
-#             for i in range(256)]
-
 def generate_combined_rgb_lookup() -> np.ndarray:
-    # Generate a combined lookup table with corrected RGB values for each intensity.
     table = np.zeros((256, 3), dtype=np.uint8)  # 256 rows, 3 columns (for R, G, B)
     
     for i in range(256):
         table[i] = [
-            int((i / 255.0) ** Settings.GAMMA_RED * 255),  # Gamma corrected red
-            int((i / 255.0) ** Settings.GAMMA_GREEN * 255),  # Gamma corrected green
-            int((i / 255.0) ** Settings.GAMMA_BLUE * 255)  # Gamma corrected blue
+            int((i / 255.0) ** Settings.GAMMA_RED * 255)     # Gamma corrected red
+            , int((i / 255.0) ** Settings.GAMMA_GREEN * 255) # Gamma corrected green
+            , int((i / 255.0) ** Settings.GAMMA_BLUE * 255)  # Gamma corrected blue
         ]
     
     return table
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: Takes a given 'hsv' or 'rgb' value and returns the gamma corrected RGB value.
-INPUT: hsv - Tuple of Normalized (0.0->1.0) HSV values.
-       rgb - Tuple of int (0->255) RGB values.
-OUTPUT: Tuple of gamma corrected RGB (0->255) values.
+DESCRIPTION: Takes a given hsv array of normalized values, converts them to RGB, and gamma corrects them.
+INPUT: hsv_array - Np array of hsv values normalized between 0 and 1. 
+OUTPUT: Same size hsv_array, just with RGB values 0-255 gamma corrected.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-def gamma_correct(hsv: tuple[float, float, float]=None, rgb: tuple[int, int, int]=None) -> tuple[Real, Real, Real]:
-    if hsv is None and rgb is None:
-        raise ValueError("Either 'hsv' or 'rgb' must be provided.")
-    
-    res_rgb = rgb
-    if hsv is not None:
-        r, g, b = colorsys.hsv_to_rgb(*hsv)
-        res_rgb = (int(r * 255), int(g * 255), int(b * 255))
-
-    return tuple(rgb_lookup_table[int(channel)][idx] for idx, channel in enumerate(res_rgb))
-
-
-
-import numpy as np
-
-def hsv_to_rgb_gamma_corrected(hsv_array):
+def hsv_to_rgb_gamma_corrected(hsv_array: np.ndarray) -> np.ndarray:
     # Unpack the HSV array into separate H, S, V components
     h, s, v = hsv_array[:, 0], hsv_array[:, 1], hsv_array[:, 2]
 
@@ -108,31 +79,16 @@ def hsv_to_rgb_gamma_corrected(hsv_array):
     return rgb_corrected
 
 
-
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: Takes two given Normalized HSV values and "blends" them. It offers the ability to disregard saturation
-             and value if you want to override that value yourself. Important note that it weights the average of the
-             resulting hue based upon the ratio of the two hsv's values. ie. a bright red and a dim blue is more red
-             leaning then a true split between.
-INPUT: hsv1 and hsv2 - Normalized HSV values we will be blending.
-       sat_val - Saturation value we can supply if we wish to disregard averaging the 'hsv1' and 'hsv2' values.
-       val_val - Value value we can supply if we wish to disregard averaging the 'hsv1' and 'hsv2' values.
-OUTPUT: Tuple of blended normalized HSV value.
+DESCRIPTION: Wrapper to blend_hsv_vectorized to allow for 'hsv1' and 'hsv2' to be single values, arrays, or a mix of
+             both to properly apply blending across an entire array of hsv values.
+INPUT: hsv1 - Single hsv value or an array of values to blend with 'hsv2'
+       hsv2 - Single hsv value to blend with 'hsv1'. If an array it needs to be same size as array of 'hsv1'.
+       sat_val - Optional saturation override.
+       val_val - Optional value override.
+OUTPUT: Np array of blended normalized HSV value.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-def blend_hsv(hsv1, hsv2, sat_val=None, val_val=None):
-    """
-    Wrapper around blend_hsv that handles both individual and array input cases.
-    - If hsv1 is a single value, it blends with hsv2.
-    - If hsv1 is an array, it blends all values in hsv1 with hsv2.
-
-    :param hsv1: Single HSV value or array of HSV values.
-    :param hsv2: Single HSV value to blend with each element of hsv1.
-    :param sat_val: Optional saturation override.
-    :param val_val: Optional value override.
-    :return: Blended HSV values.
-    """
-    
+def blend_hsv(hsv1: np.ndarray, hsv2: np.ndarray, sat_val: float=None, val_val: float=None) -> np.ndarray:
     # Convert hsv1 to a NumPy array if it's not already
     hsv1 = np.array(hsv1) if not isinstance(hsv1, np.ndarray) else hsv1
     
@@ -146,11 +102,19 @@ def blend_hsv(hsv1, hsv2, sat_val=None, val_val=None):
     
     return blended_hsv
 
-def blend_hsv_vectorized(hsv1: np.ndarray, hsv2: np.ndarray, sat_val: float = None, val_val: float = None) -> np.ndarray:
-    """
-    Vectorized version of the blend_hsv function.
-    Takes two arrays of HSV values and blends them element-wise.
-    """
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+DESCRIPTION: Takes two given Normalized HSV values and "blends" them. It offers the ability to disregard saturation
+             and value if you want to override that value yourself. Important note that it weights the average of the
+             resulting hue based upon the ratio of the two hsv's values. ie. a bright red and a dim blue is more red
+             leaning then a true split between.
+INPUT: hsv1 - Array of hsv values to blend with 'hsv2'
+       hsv2 - Array of hsv value to blend with 'hsv1'.
+       sat_val - Optional saturation override.
+       val_val - Optional value override.
+OUTPUT: Np array of blended normalized HSV value.
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+def blend_hsv_vectorized(hsv1: np.ndarray, hsv2: np.ndarray, sat_val: float=None, val_val: float=None) -> np.ndarray:
     h1, s1, v1 = hsv1[:, 0], hsv1[:, 1], hsv1[:, 2]
     h2, s2, v2 = hsv2[:, 0], hsv2[:, 1], hsv2[:, 2]
     
@@ -174,7 +138,6 @@ def blend_hsv_vectorized(hsv1: np.ndarray, hsv2: np.ndarray, sat_val: float = No
     return np.column_stack((avg_hue, avg_saturation, avg_value))
 
 
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Given a 'hue' we will generate a random hue that is at least 'min_distance' away so you don't end up with
              colors being the same back to back in animations.
@@ -189,10 +152,10 @@ def random_hue_away_from(hue: float, min_distance: float=0.1) -> float:
 
     if lower_bound < upper_bound:
         # Generate a random hue in the range [0, lower_bound) or [upper_bound, 1)
-        rand_hue = random.uniform(0, lower_bound) if random.random() < 0.5 else random.uniform(upper_bound, 1)
+        rand_hue = np.random.uniform(0, lower_bound) if np.random.rand() < 0.5 else np.random.uniform(upper_bound, 1)
     else:
         # Wraps around the 1.0 boundary, so generate a random hue in the range [upper_bound, lower_bound)
-        rand_hue = random.uniform(upper_bound, lower_bound)
+        rand_hue = np.random.uniform(upper_bound, lower_bound)
 
     return rand_hue
 

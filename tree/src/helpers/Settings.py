@@ -21,8 +21,9 @@ DESCRIPTION: Class that holds all of our user configurable settings/ constants f
 @dataclass(frozen=True)
 class SettingsClass:
     # LED Strip Settings
-    LED_PIN: int        = 18        # GPIO pin connected to the pixels (must support PWM or PCM)
     NUM_LEDS: int       = 650       # Number of LED pixels
+    LED_FPS: int        = 35        # Number of updates per second for our LED strip.
+    LED_PIN: int        = 18        # GPIO pin connected to the pixels (must support PWM or PCM)
     LED_BRIGHTNESS: int = 40        # Brightness of LEDs (0-255)
     LED_FREQ_HZ: int    = 800000    # LED signal frequency in hertz (usually 800kHz)
     LED_DMA: int        = 10        # DMA channel to use for generating signal (try 10)
@@ -30,8 +31,6 @@ class SettingsClass:
     LED_CHANNEL: int    = 0         # Channel (default is 0)
     LED_ORDER: str      = "GRB"     # Pixel color order (typically 'GRB')
 
-    LED_REFRESH_RATE_HZ: int = 40
-    
     # Internal Implementation Settings
     UPDATE_QUEUE_SIZE: int = 120     # Number of updates we can "preprocess" before waiting to calculate further
     
