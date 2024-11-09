@@ -47,7 +47,7 @@ class LEDEffects(LogAllMethods):
             (np.min(coordinates[:, 1]), np.max(coordinates[:, 1])),  # Min/Max for y-axis
             (np.min(coordinates[:, 2]), np.max(coordinates[:, 2])))  # Min/Max for z-axis
         
-        self.led_controller = LEDController(refresh_rate_hz=35, logger=self.logger)
+        self.led_controller = LEDController(logger=self.logger)
         
         self.run_effect = True
     

@@ -30,10 +30,13 @@ from helpers.Settings import Settings
 DESCRIPTION: Basic multithreaded LED controller.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 class LEDController(LogAllMethods):
-    def __init__(self, refresh_rate_hz: int=30, logger: logging.Logger=None):
+    def __init__(self, refresh_rate_hz: int=Settings.LED_REFRESH_RATE_HZ, logger: logging.Logger=None):
         self.logger = logger if logger is not None else logging.getLogger()
         self.refresh_rate_hz = refresh_rate_hz
         self.refresh_interval = 1.0 / self.refresh_rate_hz
+        
+        self.valid_led_mask = ~np.isin(np.arange(Settings.NUM_LEDS), Settings.BAD_LEDS)
+        self.packed_colors = np.zeros(Settings.NUM_LEDS, dtype=np.uint32)
         
         self.strip = PixelStrip(Settings.NUM_LEDS, Settings.LED_PIN, Settings.LED_FREQ_HZ, Settings.LED_DMA
                                 , Settings.LED_INVERT, Settings.LED_BRIGHTNESS, Settings.LED_CHANNEL)
@@ -67,17 +70,23 @@ class LEDController(LogAllMethods):
             start_time = time.time()
             data = self.update_queue.get()
             
+            # Extract and pack colors in GRB format for valid LEDs
+            self.packed_colors[self.valid_led_mask] = (
+                (data[self.valid_led_mask, 1].astype(np.uint32) << 16) |  # Green
+                (data[self.valid_led_mask, 0].astype(np.uint32) << 8) |   # Red
+                 data[self.valid_led_mask, 2].astype(np.uint32))          # Blue
+            
+            packed_list = self.packed_colors.tolist()
+
+            # Set each pixel color using packed colors from the list
             for idx in range(Settings.NUM_LEDS):
-                if idx in Settings.BAD_LEDS:
-                    color = Color(0, 0, 0)
-                else:
-                    # Assumes color order is (R, G, B). Need to cast to ints from uint8.
-                    color = Color(int(data[idx, 0]), int(data[idx, 1]), int(data[idx, 2]))
-                
+                color = packed_list[idx] if idx not in Settings.BAD_LEDS else 0
                 self.strip.setPixelColor(idx, color)
             
             self.strip.show()
+            
             elapsed_time = time.time() - start_time
+            print(elapsed_time, self.refresh_interval)
             if elapsed_time > self.refresh_interval:
                 self.logger.warning(f"Update took too long. Frame dropped. {elapsed_time:.2f}s")
             

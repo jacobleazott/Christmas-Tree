@@ -29,6 +29,8 @@ class SettingsClass:
     LED_INVERT: bool    = False     # True to invert the signal (when using NPN transistor level shift)
     LED_CHANNEL: int    = 0         # Channel (default is 0)
     LED_ORDER: str      = "GRB"     # Pixel color order (typically 'GRB')
+
+    LED_REFRESH_RATE_HZ: int = 40
     
     # Internal Implementation Settings
     UPDATE_QUEUE_SIZE: int = 120     # Number of updates we can "preprocess" before waiting to calculate further
