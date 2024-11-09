@@ -40,10 +40,12 @@ class LEDEffects(LogAllMethods):
     def __init__(self, logger: logging.Logger=None) -> None:
         self.logger = logger if logger is not None else logging.getLogger()
         
-        self.pixel_data = [(0, 0, 0)] * Settings.NUM_LEDS
-        self.min_and_max = (self.find_min_max(coordinates, 0)
-                            , self.find_min_max(coordinates, 1)
-                            , self.find_min_max(coordinates, 2))
+        self.pixel_data = np.zeros((Settings.NUM_LEDS, 3), dtype=np.uint8)
+        
+        self.min_and_max = (
+            (np.min(coordinates[:, 0]), np.max(coordinates[:, 0])),  # Min/Max for x-axis
+            (np.min(coordinates[:, 1]), np.max(coordinates[:, 1])),  # Min/Max for y-axis
+            (np.min(coordinates[:, 2]), np.max(coordinates[:, 2])))  # Min/Max for z-axis
         
         self.led_controller = LEDController(refresh_rate_hz=35, logger=self.logger)
         
@@ -66,36 +68,14 @@ class LEDEffects(LogAllMethods):
 
         self.run_effect = False
         thread.join()
-    
-    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    DESCRIPTION: We often need the range of values we are working with given a certain axis. This function just finds
-                 the min and max values for that given axis.
-    INPUT: axis - X, Y, or Z (0, 1, 2), which axis we will be grabbing the min and max from.
-    OUTPUT: Tuple of (min, max) value for the given 'axis'
-    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    # def find_min_max(self, coords: list[list[Real]], axis: int) -> tuple[Real, Real]:
-    def find_min_max(self, coords, axis):
-        start = time.time()
-        coords_array = np.array(coords, dtype=np.int32)  # Try setting dtype
-        print("\t # Array creation time:", time.time() - start)
 
-        start = time.time()
-        min_val = np.min(coords_array[:, axis])
-        print("\t # Min computation time:", time.time() - start)
-
-        start = time.time()
-        max_val = np.max(coords_array[:, axis])
-        print("\t # Max computation time:", time.time() - start)
-
-        return min_val, max_val
-    
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     DESCRIPTION: Turns 'off' all the LEDs ie just sets them all to (0, 0, 0).
     INPUT: NA
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     def turn_off(self) -> None:
-        self.pixel_data = [(0, 0, 0)] * Settings.NUM_LEDS
+        self.pixel_data = np.zeros((Settings.NUM_LEDS, 3), dtype=np.uint8)
         self.led_controller.update_leds(self.pixel_data)
     
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
@@ -108,12 +88,24 @@ class LEDEffects(LogAllMethods):
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     def _rainbow(self, hue_step: int, distance_values: list[Real]) -> None:
-        for hue in range(0, int(math.copysign(360, hue_step)), hue_step):
-            for pixel in range(Settings.NUM_LEDS):
-                val = (hue + distance_values[pixel]) % 360
-                self.pixel_data[pixel] = CH.gamma_correct(hsv=(val / 360.0, 1.0, 1.0))
-            self.led_controller.update_leds(self.pixel_data)
+        step_size = hue_step / 360.0
     
+        # Generate all normalized hue values
+        num_steps = int(abs(1.0 / step_size))
+        normalized_hues = np.linspace(0.0, np.copysign(1.0, step_size), num_steps, endpoint=False)
+        
+        # Calculate every distance value pair for our number of steps and number of LEDs
+        hues_matrix = (normalized_hues[:, None] + distance_values) % 1.0  # Shape: (num_steps, NUM_LEDS)
+
+        # Stack hues and SV values to create the full HSV array for all frames
+        sv_values = np.ones_like(hues_matrix)
+        hsv_values = np.stack((hues_matrix, sv_values, sv_values), axis=-1)  # Shape: (num_steps, NUM_LEDS, 3)
+        
+        # Convert all HSV frames to gamma corrected RGB values
+        rgb_frames = CH.hsv_to_rgb_gamma_corrected(hsv_values.reshape(-1, 3)).reshape(num_steps, -1, 3)
+
+        self.led_controller.update_leds(rgb_frames)
+
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     DESCRIPTION: Runs a "rainbow" effect on the cartesian coords. The given 'axis' will define the "direction" change.
     INPUT: axis - X, Y, or Z (0, 1, 2), which axis we will be changing the color against.
@@ -123,12 +115,10 @@ class LEDEffects(LogAllMethods):
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""      
     def axis_rainbow(self, axis:int, step:Real, width:Real) -> None:
         height = self.min_and_max[axis][1] - self.min_and_max[axis][0]
-        hue_step = int(360 * step)
-        dis_vals = [360*width*((coordinates[pixel][axis] + self.min_and_max[axis][0]) / height) 
-                    for pixel in range(Settings.NUM_LEDS)]
+        dis_vals = width * ((coordinates[:, axis] + self.min_and_max[axis][0]) / height)
         
         while self.run_effect:
-            self._rainbow(hue_step, dis_vals)
+            self._rainbow(360 * step, dis_vals)
 
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     DESCRIPTION: Runs a "rainbow" effect on 2D polar coords. The specified 'axis' being the one we "ignore". It then
@@ -139,67 +129,61 @@ class LEDEffects(LogAllMethods):
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     def radial_rainbow(self, axis:int, step:int, width:Real) -> None:
-        coords = MH.to_2D_polar_coords(coordinates, axis)
-        dis_vals = [width*(coords[pixel][1]) for pixel in range(Settings.NUM_LEDS)]
-        
+        dis_vals = (width * (MH.convert_3D_coords_to_2D_polar(coordinates, axis)[:, 1] / 360.0)) % 1.0
+
         while self.run_effect:
            self._rainbow(step, dis_vals)
-    
+
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     DESCRIPTION: Sweeps a plane across the tree of a random color and random orientation. Also fades the plane as it 
                  passes through.
-    INPUT: step - How "fast" the plane travels across the tree. Needs trial and error.
+    INPUT: steps - How "fast" the plane travels across the tree. Needs trial and error.
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    def random_plane(self, step: int) -> None:
+    def random_plane(self, steps: int) -> None:
         # Values are normalized between 0.0 and 1.0
-        hsv_values = [[0.0, 0.0, 0.0]] * Settings.NUM_LEDS
-        cur_hue = random.uniform(0.0, 1.0)
+        hsv_values = np.zeros((Settings.NUM_LEDS, 3), dtype=np.float32)
+        target_hsv = np.array([random.uniform(0.0, 1.0), 1.0, 1.0])
+        fade_threshold = 0.1
 
         """Helper function to fade, gamma correct, and limit brightness of our LEDs."""
         def _fade_helper():
-            for pixel, hsv in enumerate(hsv_values):
-                if hsv[2] > 0.2:
-                    hsv[2] /= random.uniform(1.0, 1.3)  # Apply fade
-                    self.pixel_data[pixel] = CH.gamma_correct(hsv=hsv)
-                else: # Reset if too dim
-                    hsv_values[pixel] = [0.0, 0.0, 0.0]  
-                    self.pixel_data[pixel] = (0, 0, 0)
-            self.led_controller.update_leds(self.pixel_data)
+            fade_mask = hsv_values[:, 2] > fade_threshold # Only need to fade values above threshold.
+            hsv_values[~fade_mask] = [0.0, 0.0, 0.0] # Reset anything that's below our threshold
 
+            # Define a unique fade value for each pixel.
+            fade_factors = np.random.uniform(1.0, 1.2, size=hsv_values.shape[0])
+
+            # Apply fade only to pixels within our mask.
+            hsv_values[fade_mask, 2] /= fade_factors[fade_mask]
+            
+            self.pixel_data = CH.hsv_to_rgb_gamma_corrected(hsv_values)
+            self.led_controller.update_leds(self.pixel_data)
         
         while self.run_effect:
-            # Rotate coordinates randomly around three axes
-            random_angles = [random.randint(0, 360) for _ in range(3)]
-            coords = [MH.rotate_point(coord, random_angles) for coord in coordinates]
+            # Rotate all coordinates at once
+            coords = MH.rotate_coordinates(coordinates, np.random.uniform(0, 2 * np.pi, 3))
+            height_range = np.linspace(coords[:, 0].min(), coords[:, 0].max(), steps)
             
-            print(self.led_controller.update_queue.qsize())
+            for height in height_range:
+                in_plane_mask = (coords[:, 0] >= height) & (coords[:, 0] < height + 50)
+                value_mask = hsv_values[:, 2] > fade_threshold
+                # We only want to blend values that meet brightness threshold and intersect our plane
+                combined_mask = in_plane_mask & value_mask
 
-            # Grab min and max along the given axis
-            min_val, max_val = self.find_min_max(coords, 0)
-            
-            overall = time.time()
+                # For these pixels, apply blending or set to the new hue
+                hsv_values[combined_mask] = CH.blend_hsv(hsv_values[combined_mask], target_hsv)
 
-            for height in range(int(min_val), int(max_val), step):
-                for pixel in range(Settings.NUM_LEDS):
-                    # Apply hue or fade effect based on pixel height range
-                    if height <= coords[pixel][0] < height + 50:
-                        hsv_values[pixel] = list(CH.blend_hsv(
-                            hsv_values[pixel], [cur_hue, 1.0, 1.0],
-                            sat_val=1.0, val_val=1.0
-                        )) if hsv_values[pixel][2] >= 0.01 else [cur_hue, 1.0, 1.0]
-                        
-                        hsv_values[pixel] = [cur_hue, 1.0, 1.0]
-                # Update the pixels and fade values
+                # For the rest of the pixels that are within our plane but didn't need blending, set directly to new hue
+                hsv_values[in_plane_mask & ~value_mask] = target_hsv
+
                 _fade_helper()
-            
-            print("TOTAL TIME: ", time.time()-overall)
-            
+
             # Randomize the hue for the next iteration
-            cur_hue = CH.random_hue_away_from(cur_hue)
+            target_hsv = np.array([CH.random_hue_away_from(target_hsv[0]), 1.0, 1.0])
             
         # Gracefully fade out remaining pixels
-        while any(fade[2] > 0.01 for fade in hsv_values):
+        while any(fade[2] > fade_threshold for fade in hsv_values):
             _fade_helper()
     
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
@@ -209,9 +193,17 @@ class LEDEffects(LogAllMethods):
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
     def solid_color_rainbow(self, step: int) -> None:
         while self.run_effect:
-            for hue in range(0, 360, step):
-                self.pixel_data = [CH.gamma_correct(hsv=((hue / 360.0), 1.0, 1.0))] * Settings.NUM_LEDS
-                self.led_controller.update_leds(self.pixel_data)
+            hues = np.arange(0, 360, step) / 360.0  
+            hsv_values = np.zeros((len(hues), 3), dtype=np.float16)
+            hsv_values[:, 0] = hues  # Hue
+            hsv_values[:, 1] = 1.0   # Saturation (constant)
+            hsv_values[:, 2] = 1.0   # Value (constant)
+            
+            rgb_frames = CH.hsv_to_rgb_gamma_corrected(hsv_values)
+            rgb_leds = np.transpose(np.tile(rgb_frames, (Settings.NUM_LEDS, 1, 1)), (1, 0, 2)) 
+            
+            # Update the LEDs with the newly calculated pixel data
+            self.led_controller.update_leds(rgb_leds)
 
 
 if __name__ == "__main__":

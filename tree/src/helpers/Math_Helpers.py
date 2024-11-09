@@ -12,6 +12,8 @@ import math
 import numpy as np
 from numbers import Real
 
+import time
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Given a single XYZ 'point', rotate it around the origin with XYZ parts of 'angles' 
 INPUT: point - XYZ coord of the point we will be rotating.
@@ -39,24 +41,74 @@ def rotate_point(point: tuple[Real, Real, Real], angles: tuple[Real, Real, Real]
     rotated_point = R @ point
     return np.rint(rotated_point)
 
+
+import numpy as np
+
+def rotate_coordinates(coords: np.ndarray, angles: np.ndarray) -> np.ndarray:
+    """
+    Rotates a set of 3D Cartesian coordinates by three angles on the X, Y, and Z axes respectively.
+
+    Args:
+    - coords (np.ndarray): An array of shape (n, 3), where n is the number of coordinates.
+    - angles (np.ndarray): An array of shape (3,), containing the rotation angles in radians for [theta_x, theta_y, theta_z].
+
+    Returns:
+    - np.ndarray: The rotated coordinates of shape (n, 3).
+    """
+    # Extract angles
+    theta_x, theta_y, theta_z = angles
+
+    # Rotation matrices
+    Rx = np.array([
+        [1, 0, 0],
+        [0, np.cos(theta_x), -np.sin(theta_x)],
+        [0, np.sin(theta_x), np.cos(theta_x)]
+    ])
+
+    Ry = np.array([
+        [np.cos(theta_y), 0, np.sin(theta_y)],
+        [0, 1, 0],
+        [-np.sin(theta_y), 0, np.cos(theta_y)]
+    ])
+
+    Rz = np.array([
+        [np.cos(theta_z), -np.sin(theta_z), 0],
+        [np.sin(theta_z), np.cos(theta_z), 0],
+        [0, 0, 1]
+    ])
+
+    # Combined rotation matrix
+    R = Rz @ Ry @ Rx  # Matrix multiplication in the correct order
+
+    # Apply rotation to each coordinate (coords is shape (n, 3), R is 3x3)
+    rotated_coords = np.dot(coords, R.T)  # Dot product for each coordinate
+
+    return rotated_coords
+
+
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Takes a givne list of cartesian 'coords' and converts them into polar coords ignoring the given 'axis'.
 INPUT: coords - XYZ values of our cartestion coordinates we will be converting.
 OUTPUT: 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-def to_2D_polar_coords(coords: tuple[Real, Real, Real], axis: int = 0) -> list[tuple[Real, Real]]:
-    # Map the axis to the indices of the coordinates to keep
-    axes = {0: (1, 2), 1: (0, 2), 2: (0, 1)}
-    polar_coords = []
+def to_2D_polar_coords(coords: np.ndarray) -> np.ndarray:
+    x, y = coords[:, 0], coords[:, 1]
     
-    for coord in coords:
-        u, v = coord[axes[axis][0]], coord[axes[axis][1]]  # Extract u and v based on the ignored axis
-        # Convert (u, v) to polar coordinates
-        r = math.sqrt(u**2 + v**2)
-        theta = math.atan2(v, u)  # Angle in radians
-        theta_degrees = math.degrees(theta)  # Convert angle to degrees
-        polar_coords.append((r, theta_degrees))
+    r = np.hypot(x, y)  # Equivalent to sqrt(x**2 + y**2), more efficient
+    theta_degrees = np.degrees(np.arctan2(y, x))
 
-    return polar_coords
+    return np.column_stack((r, theta_degrees))
+
+
+def convert_3D_coords_to_2D_polar(coords_3d: np.ndarray, exclude_axis: int) -> np.ndarray:
+    # Map axis to the remaining pair of coordinates
+    axis_pairs = {0: (1, 2), 1: (0, 2), 2: (0, 1)}
+
+    # Extract the appropriate coordinates based on the excluded axis
+    x, y = coords_3d[:, axis_pairs[exclude_axis][0]], coords_3d[:, axis_pairs[exclude_axis][1]]
+
+    # Pass to the to_2D_polar_coords function
+    return to_2D_polar_coords(np.column_stack((x, y)))
 
 # FIN ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════

@@ -92,11 +92,17 @@ class LEDController(LogAllMethods):
     INPUT: led_array - List of values for our led strip that we will queue to be updated.
     OUTPUT: NA
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    def update_leds(self, led_array: list) -> None:
-        if type(led_array) is list:
-            led_array = np.array(led_array, dtype=np.uint8)
-            
-        self.update_queue.put(led_array)
+    def update_leds(self, led_array: np.ndarray) -> None:
+        # Ensure led_array is a NumPy array of the correct dtype
+        assert isinstance(led_array, np.ndarray) and led_array.dtype == np.uint8
 
+        # Check if led_array is a batch of frames or a single frame
+        if led_array.ndim == 2:  # Single frame, shape should be (NUM_LEDS, 3)
+            self.update_queue.put(led_array)
+        elif led_array.ndim == 3:  # Multiple frames, shape should be (num_frames, NUM_LEDS, 3)
+            for frame in led_array:
+                self.update_queue.put(frame)
+        else:
+            raise ValueError("led_array must be a 2D or 3D array representing RGB frames.")
 
 # FIN ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════

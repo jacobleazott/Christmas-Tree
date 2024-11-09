@@ -1,7 +1,7 @@
 # ╔════╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦═══════╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦════╗
 # ║  ╔═╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩═══════╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩═╗  ║
 # ╠══╣                                                                                                             ╠══╣
-# ║  ║    COLOR HELPERS                            CREATED: 2027-10-18          https://github.com/jacobleazott    ║  ║
+# ║  ║    COLOR HELPERS                            CREATED: 2024-10-18          https://github.com/jacobleazott    ║  ║
 # ║══║                                                                                                             ║══║
 # ║  ╚═╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦═══════╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦═╝  ║
 # ╚════╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩═══════╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩════╝
@@ -14,6 +14,7 @@ import random
 from numbers import Real
 
 import time
+import numpy as np
 
 from helpers.Settings import Settings
 
@@ -25,11 +26,24 @@ DESCRIPTION: Generates a gamma corrected table for RGB values. The format is a 2
 INPUT: NA
 OUTPUT: RGB lookup table to gamma correct any int rgb tuple.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-def generate_combined_rgb_lookup() -> list[tuple[Real, Real, Real]]:
-    return [(int((i / 255.0) ** Settings.GAMMA_RED * 255)
-             , int((i / 255.0) ** Settings.GAMMA_GREEN * 255)
-             , int((i / 255.0) ** Settings.GAMMA_BLUE * 255))
-            for i in range(256)]
+# def generate_combined_rgb_lookup() -> list[tuple[Real, Real, Real]]:
+#     return [(int((i / 255.0) ** Settings.GAMMA_RED * 255)
+#              , int((i / 255.0) ** Settings.GAMMA_GREEN * 255)
+#              , int((i / 255.0) ** Settings.GAMMA_BLUE * 255))
+#             for i in range(256)]
+
+def generate_combined_rgb_lookup() -> np.ndarray:
+    # Generate a combined lookup table with corrected RGB values for each intensity.
+    table = np.zeros((256, 3), dtype=np.uint8)  # 256 rows, 3 columns (for R, G, B)
+    
+    for i in range(256):
+        table[i] = [
+            int((i / 255.0) ** Settings.GAMMA_RED * 255),  # Gamma corrected red
+            int((i / 255.0) ** Settings.GAMMA_GREEN * 255),  # Gamma corrected green
+            int((i / 255.0) ** Settings.GAMMA_BLUE * 255)  # Gamma corrected blue
+        ]
+    
+    return table
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -50,6 +64,52 @@ def gamma_correct(hsv: tuple[float, float, float]=None, rgb: tuple[int, int, int
     return tuple(rgb_lookup_table[int(channel)][idx] for idx, channel in enumerate(res_rgb))
 
 
+
+import numpy as np
+
+def hsv_to_rgb_gamma_corrected(hsv_array):
+    # Unpack the HSV array into separate H, S, V components
+    h, s, v = hsv_array[:, 0], hsv_array[:, 1], hsv_array[:, 2]
+
+    # Scale hue to [0, 6)
+    h = h * 6
+    i = np.floor(h).astype(int)  # integer part of h
+    f = h - i  # fractional part of h
+
+    # Calculate intermediate values for RGB
+    p = v * (1 - s)
+    q = v * (1 - f * s)
+    t = v * (1 - (1 - f) * s)
+
+    # Initialize RGB arrays
+    rgb_array = np.zeros_like(hsv_array)
+
+    # Assign RGB values based on the sector
+    i_mod = i % 6
+    rgb_array[i_mod == 0] = np.stack([v, t, p], axis=-1)[i_mod == 0]
+    rgb_array[i_mod == 1] = np.stack([q, v, p], axis=-1)[i_mod == 1]
+    rgb_array[i_mod == 2] = np.stack([p, v, t], axis=-1)[i_mod == 2]
+    rgb_array[i_mod == 3] = np.stack([p, q, v], axis=-1)[i_mod == 3]
+    rgb_array[i_mod == 4] = np.stack([t, p, v], axis=-1)[i_mod == 4]
+    rgb_array[i_mod == 5] = np.stack([v, p, q], axis=-1)[i_mod == 5]
+
+    # Scale to 8-bit RGB (0-255)
+    rgb_array = (rgb_array * 255).astype(np.uint8)
+
+    # Apply gamma correction using the lookup table
+    # Correct the RGB channels by using advanced indexing
+    r_corrected = rgb_lookup_table[rgb_array[:, 0], 0]
+    g_corrected = rgb_lookup_table[rgb_array[:, 1], 1]
+    b_corrected = rgb_lookup_table[rgb_array[:, 2], 2]
+
+    # Stack corrected channels back together
+    rgb_corrected = np.stack([r_corrected, g_corrected, b_corrected], axis=-1)
+
+    return rgb_corrected
+
+
+
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Takes two given Normalized HSV values and "blends" them. It offers the ability to disregard saturation
              and value if you want to override that value yourself. Important note that it weights the average of the
@@ -60,32 +120,59 @@ INPUT: hsv1 and hsv2 - Normalized HSV values we will be blending.
        val_val - Value value we can supply if we wish to disregard averaging the 'hsv1' and 'hsv2' values.
 OUTPUT: Tuple of blended normalized HSV value.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-def blend_hsv(hsv1: tuple[float, float, float], hsv2: tuple[float, float, float]
-              , sat_val: float=None, val_val: float=None) -> tuple[float, float, float]:
-    h1, s1, v1 = hsv1
-    h2, s2, v2 = hsv2
+def blend_hsv(hsv1, hsv2, sat_val=None, val_val=None):
+    """
+    Wrapper around blend_hsv that handles both individual and array input cases.
+    - If hsv1 is a single value, it blends with hsv2.
+    - If hsv1 is an array, it blends all values in hsv1 with hsv2.
+
+    :param hsv1: Single HSV value or array of HSV values.
+    :param hsv2: Single HSV value to blend with each element of hsv1.
+    :param sat_val: Optional saturation override.
+    :param val_val: Optional value override.
+    :return: Blended HSV values.
+    """
+    
+    # Convert hsv1 to a NumPy array if it's not already
+    hsv1 = np.array(hsv1) if not isinstance(hsv1, np.ndarray) else hsv1
+    
+    # Handle the case where hsv2 is a single value
+    if hsv2.ndim == 1:
+        # If hsv2 is a single value (1, 3), expand it to match the shape of hsv1
+        hsv2 = np.repeat(hsv2[np.newaxis, :], hsv1.shape[0], axis=0)
+
+    # Now both hsv1 and hsv2 should have compatible shapes (n, 3)
+    blended_hsv = blend_hsv_vectorized(hsv1, hsv2, sat_val=sat_val, val_val=val_val)
+    
+    return blended_hsv
+
+def blend_hsv_vectorized(hsv1: np.ndarray, hsv2: np.ndarray, sat_val: float = None, val_val: float = None) -> np.ndarray:
+    """
+    Vectorized version of the blend_hsv function.
+    Takes two arrays of HSV values and blends them element-wise.
+    """
+    h1, s1, v1 = hsv1[:, 0], hsv1[:, 1], hsv1[:, 2]
+    h2, s2, v2 = hsv2[:, 0], hsv2[:, 1], hsv2[:, 2]
     
     # Compute weights based on brightness
     total_value = v1 + v2
-    if total_value == 0:
-        return hsv1  # Avoid division by zero; return first color if both are black.
-
     weight1 = v1 / total_value
     weight2 = v2 / total_value
 
     # Convert hues to radians and calculate weighted circular mean
-    h1_rad = h1 * 2 * math.pi
-    h2_rad = h2 * 2 * math.pi
-    avg_hue_rad = math.atan2(weight1 * math.sin(h1_rad) + weight2 * math.sin(h2_rad)
-                           , weight1 * math.cos(h1_rad) + weight2 * math.cos(h2_rad))
+    h1_rad = h1 * 2 * np.pi
+    h2_rad = h2 * 2 * np.pi
+    avg_hue_rad = np.arctan2(weight1 * np.sin(h1_rad) + weight2 * np.sin(h2_rad),
+                             weight1 * np.cos(h1_rad) + weight2 * np.cos(h2_rad))
     
-    avg_hue = avg_hue_rad / (2 * math.pi) % 1.0  # Normalize to 0-1 range
+    avg_hue = (avg_hue_rad / (2 * np.pi)) % 1.0  # Normalize to 0-1 range
 
-    # Calculate weighted averages for saturation and value, using optional overrides
+    # Calculate weighted averages for saturation and value
     avg_saturation = sat_val if sat_val is not None else s1 * weight1 + s2 * weight2
     avg_value = val_val if val_val is not None else v1 * weight1 + v2 * weight2
 
-    return avg_hue, avg_saturation, avg_value
+    return np.column_stack((avg_hue, avg_saturation, avg_value))
+
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
