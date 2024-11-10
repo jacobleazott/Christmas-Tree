@@ -29,20 +29,21 @@ import keyboard
 import pyautogui
 import time
 import math
-from math import cos, sin 
+from math import cos, sin
 
 NUM_LEDS = 650
 ANGLE_SET = [0, 90, 180, 270]
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: 
-INPUT: 
-OUTPUT: 
+DESCRIPTION: For the given 'angle' it takes a picture of every single LED on our strip incrementing through another
+             terminal using the "Enter" key.
+INPUT: angle - which current angle we are taking pictures at to add to the correct folder/ name.
+OUTPUT: Saves off all the pictures to their respective folders for the given angle.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def take_pictures(angle: int):
     cam_port = 1
-    cam = cv2.VideoCapture(1)
-    pyautogui.click(1000,1800)
+    cam = cv2.VideoCapture(cam_port)
+    pyautogui.click(1000, 1800)
     
     for count in range(0, NUM_LEDS):
         print(f"Taking Picture of LED {count}")
@@ -58,9 +59,9 @@ def take_pictures(angle: int):
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: 
-INPUT: 
-OUTPUT: 
+DESCRIPTION: Reads all of our images and does some basic computer vision to find where the LED is on the picture.
+INPUT: Requires the pictures from 'take_pictures'.
+OUTPUT: Coords txt files are saved with the given angle and pixel xy coords where the LED was seen.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def gen_auto_coordinates():
     sum_x = 0
@@ -83,7 +84,7 @@ def gen_auto_coordinates():
                 sum_y += y
                 leds_found += 1
             else:
-                file.write(f"0 0\n")
+                file.write("0 0\n")
             
         file.close()
     
@@ -91,17 +92,15 @@ def gen_auto_coordinates():
     average_y = sum_y / leds_found
     print(average_x, average_y)
 
-
-
-
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION:
-INPUT: 
-OUTPUT: 
+DESCRIPTION: Takes the calculated coords from image processing and figures out where in 3D space they are.
+INPUT: Requires all of the coords files from 'gen_auto_coordinates'.
+OUTPUT: Writes to a text file 'auto_coordinates.txt' with all of our 3D coordiantes for the system. It defaults to 
+        0, 0, 0 if it was unable to calculate properly.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def calc_auto_coords():
     file_0 = open("coords/0_auto.txt", 'r')
@@ -109,15 +108,16 @@ def calc_auto_coords():
     file_180 = open("coords/180_auto.txt", 'r')
     file_270 = open("coords/270_auto.txt", 'r')
 
-    file = open(f"coords/auto_coordinates.txt", 'w')
+    file = open("coords/auto_coordinates.txt", 'w')
 
-    degree_0 = 0
-    degree_90 = math.pi/2.0
+    degree_90 = math.pi / 2.0
     degree_180 = math.pi
-    degree_270 = (3.0*math.pi)/2.0
+    degree_270 = (3.0 * math.pi) / 2.0
 
     def rotate_x(coords, theta):
-        return [coords[0], coords[1]*cos(theta) - coords[2]*sin(theta), coords[1]*sin(theta) + coords[2]*cos(theta)]
+        return [coords[0], coords[1] * cos(theta) - coords[2]
+                * sin(theta), coords[1] * sin(theta) + coords[2]
+                * cos(theta)]
 
     def add_coords(coords_1, coords_2):
         return [coords_1[0] + coords_2[0], coords_1[1] + coords_2[1], coords_1[2] + coords_2[2]]
@@ -125,7 +125,7 @@ def calc_auto_coords():
     # Gives [x, y, z] of coord_0
     def xy_x(coord_0, coord_1, theta):
         # We also average the x coordinate here since it might not be perfect
-        return [(coord_0[0] + coord_1[0])/2.0, coord_0[1], (coord_0[1]*cos(theta) - coord_1[1]) / sin(theta)]
+        return [(coord_0[0] + coord_1[0]) / 2.0, coord_0[1], (coord_0[1] * cos(theta) - coord_1[1]) / sin(theta)]
 
     final_count = 0.0
     average_x = 0.0
@@ -179,7 +179,7 @@ def calc_auto_coords():
             
         file.write(f"{final_coord[0]} {final_coord[1]} {final_coord[2]}\n")
 
-    print(average_x/final_count, average_y/final_count, average_z/final_count)
+    print(average_x / final_count, average_y / final_count, average_z / final_count)
 
     file.close()
     file_0.close()
@@ -189,13 +189,14 @@ def calc_auto_coords():
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: Not sure what this is meant to accomplish quite yet
-INPUT: 
-OUTPUT: 
+DESCRIPTION: Just a simple adjuster so that we can center our coordiantes on 0, 0, 0. Requires us to update the offset
+             values with the "average" value for each axis.
+INPUT: Reads our auto_coordiantes.txt file to adjust coordiantes.
+OUTPUT: Writes out to a new file the "corrected" coordinates.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def adjust_auto_coordinates():
-    file = open(f"coords/auto_coordinates.txt", 'r')
-    write_File = open(f"coords/auto_corrected_coordinates.txt", 'w')
+    file = open("coords/auto_coordinates.txt", 'r')
+    write_File = open("coords/auto_corrected_coordinates.txt", 'w')
     
     for x in range(NUM_LEDS):
         coord = file.readline().split()

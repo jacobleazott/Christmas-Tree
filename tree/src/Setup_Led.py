@@ -8,9 +8,6 @@
 # ════════════════════════════════════════════════════ DESCRIPTION ════════════════════════════════════════════════════
 # This is to be run with our calibration through the webcam to properly plot out where every single LED on the tree is.
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-import sys
-import time
-
 from Coords import coordinates
 from Led_Controller import LEDController
 from helpers.Settings import Settings
@@ -34,7 +31,7 @@ def one_led():
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: Slides a "plane" across the given XYZ axis to help find outlier LEDs. 
+DESCRIPTION: Slides a "plane" across the given XYZ axis to help find outlier LEDs.
 INPUT: axis - XYZ (0, 1, or 2) axis we will itterate over and show LEDs that intersect.
        width - How "wide" our plane is to better visualize out of place LEDs.
 OUTPUT: NA
@@ -43,10 +40,10 @@ def slide_grid(axis=0, width=50):
     led_controller = LEDController()
     pixel_data = [(0, 0, 0)] * Settings.NUM_LEDS
     led_controller.update_leds(pixel_data)
-
+    
     axis_coords = [coord[axis] for coord in coordinates]
     min_val, max_val = min(axis_coords), max(axis_coords)
-
+    
     for val in range(min_val, max_val, width):
         pixel_data = [(0, 0, 0)] * Settings.NUM_LEDS
         for led in range(Settings.NUM_LEDS):
@@ -58,7 +55,7 @@ def slide_grid(axis=0, width=50):
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: Sometimes LED's go bad and have weird colors displayed. This just goes through our strip and let's you 
+DESCRIPTION: Sometimes LED's go bad and have weird colors displayed. This just goes through our strip and let's you
              find the LED index with "relative" ease to add to our 'BAD_LEDS' list in Settings.
 INPUT: starting_index - Which LED index we will start displaying from.
        ending_index - Which LED index to end at.
@@ -69,14 +66,14 @@ def find_bad_led(starting_index, ending_index, step):
     led_controller = LEDController()
     pixel_data = [(0, 0, 0)] * Settings.NUM_LEDS
     led_controller.update_leds(pixel_data)
-
+    
     for val in range(starting_index, ending_index, step):
         pixel_data = [(0, 0, 0)] * Settings.NUM_LEDS
-        for led in range(val, val+step):
+        for led in range(val, val + step):
             pixel_data[led] = (0, 0, 255)
         led_controller.update_leds(pixel_data)
         input(f"Showing {val}-{val+step}...")
-    
+
 
 def main():
     one_led()

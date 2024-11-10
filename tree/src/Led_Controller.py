@@ -6,13 +6,13 @@
 # ║  ╚═╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦═══════╦══════╦══════╦══════╦══════╦══════╦══════╦══════╦═╝  ║
 # ╚════╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩═══════╩══════╩══════╩══════╩══════╩══════╩══════╩══════╩════╝
 # ════════════════════════════════════════════════════ DESCRIPTION ════════════════════════════════════════════════════
-# Basic utility helper to handle the updates to led strips. It utilizes the 'multiprocessing' module to utilize 
+# Basic utility helper to handle the updates to led strips. It utilizes the 'multiprocessing' module to utilize
 #   multiple CPU cores. This allows one core of the system to solely be dedicated to updating the LED's while the main
-#   thread can worry about calculating the next values needed to be displayed. 
+#   thread can worry about calculating the next values needed to be displayed.
 #
 # It also implements a backlog queue of values to be written to the strip. This way the thread responsible for
 #   computing the next 'frame' can work ahead a little bit. This allows for frequent hits to performance on not only
-#   the system as a whole, but more importantly the thread calculating our next 'frame'. Let's say every 10s the 
+#   the system as a whole, but more importantly the thread calculating our next 'frame'. Let's say every 10s the
 #   feature we are running needs 1 full second of processing time. Without a backlog frame queue we would simply have
 #   no data for that 1s. Now it can take that performance hit and show no sign to the user assuming under "normal"
 #   operation the calcuation is faster than our 'refresh_rate_hz'.
@@ -20,21 +20,30 @@
 import logging
 import multiprocessing
 import numpy as np
-import os
 import time
-from rpi_ws281x import PixelStrip, Color
 
-from helpers.decorators import *
+from typing import Optional
+from rpi_ws281x import PixelStrip
+
+from helpers.decorators import LogAllMethods
 from helpers.Settings import Settings
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Basic multithreaded LED controller.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 class LEDController(LogAllMethods):
-    def __init__(self, refresh_rate_hz: int=Settings.LED_FPS, logger: logging.Logger=None):
+    logger: logging.Logger
+    refresh_interval: float
+    valid_led_mask: np.ndarray
+    packed_colors: np.ndarray
+    strip: PixelStrip
+    update_queue: multiprocessing.Queue
+    led_update_process: multiprocessing.Process
+    running: multiprocessing.Value
+    
+    def __init__(self, refresh_rate_hz: int=Settings.LED_FPS, logger: Optional[logging.Logger]=None):
         self.logger = logger if logger is not None else logging.getLogger()
-        self.refresh_rate_hz = refresh_rate_hz
-        self.refresh_interval = 1.0 / self.refresh_rate_hz
+        self.refresh_interval = 1.0 / refresh_rate_hz
         
         self.valid_led_mask = ~np.isin(np.arange(Settings.NUM_LEDS), Settings.BAD_LEDS)
         self.packed_colors = np.zeros(Settings.NUM_LEDS, dtype=np.uint32)
@@ -73,12 +82,12 @@ class LEDController(LogAllMethods):
             
             # Extract and pack colors in GRB format for valid LEDs
             self.packed_colors[self.valid_led_mask] = (
-                (data[self.valid_led_mask, 1].astype(np.uint32) << 16) |  # Green
-                (data[self.valid_led_mask, 0].astype(np.uint32) << 8) |   # Red
-                 data[self.valid_led_mask, 2].astype(np.uint32))          # Blue
+                (data[self.valid_led_mask, 1].astype(np.uint32) << 16)   # Green
+                | (data[self.valid_led_mask, 0].astype(np.uint32) << 8)  # Red
+                | data[self.valid_led_mask, 2].astype(np.uint32))        # Blue
             
             packed_list = self.packed_colors.tolist()
-
+            
             # Set each pixel color using packed colors from the list
             for idx in range(Settings.NUM_LEDS):
                 color = packed_list[idx] if idx not in Settings.BAD_LEDS else 0
@@ -96,7 +105,7 @@ class LEDController(LogAllMethods):
                 time.sleep(time_to_wait)
 
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
-    DESCRIPTION: Puts our 'led_array' onto our 'update_queue' and then checks to see if we should wait before 
+    DESCRIPTION: Puts our 'led_array' onto our 'update_queue' and then checks to see if we should wait before
                  returning to prevent the caller to overwhelm the controller.
     INPUT: led_array - Np array of RGB data (can have many frames) for our led strip that we will queue to be updated.
     OUTPUT: NA
@@ -104,7 +113,7 @@ class LEDController(LogAllMethods):
     def update_leds(self, led_array: np.ndarray) -> None:
         # Ensure led_array is a NumPy array of the correct dtype
         assert isinstance(led_array, np.ndarray) and led_array.dtype == np.uint8
-
+        
         # Check if led_array is a batch of frames or a single frame
         if led_array.ndim == 2:  # Single frame, shape should be (NUM_LEDS, 3)
             self.update_queue.put(led_array)

@@ -10,7 +10,7 @@
 # ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 import functools
 import logging
-from typing import Union, Optional
+from typing import Union
 
 from helpers.Settings import Settings
 
@@ -21,15 +21,15 @@ INPUT: filename - name of logfile.
        mode - write ('w') or append ('a') mode for the logger.
 OUTPUT: Logger Object
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-def get_file_logger(filename: str, log_level: Union[int, str]=logging.INFO, mode: str='w', 
+def get_file_logger(filename: str, log_level: Union[int, str]=logging.INFO, mode: str='w',
                     console: bool=False) -> logging.Logger:
     logger = logging.getLogger(filename)
     logger.setLevel(log_level)
     file_handler = logging.FileHandler(filename, mode=mode)
-    file_handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s:%(lineno)d - %(message)s', 
-        datefmt=f'%Y-%m-%d %H:%M:%S'))
+    file_handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(filename)s:%(lineno)d - %(message)s',
+                                                datefmt='%Y-%m-%d %H:%M:%S'))
     logger.addHandler(file_handler)
-
+    
     if console:
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(logging.Formatter('%(filename)s:%(lineno)d - %(message)s'))
@@ -39,7 +39,7 @@ def get_file_logger(filename: str, log_level: Union[int, str]=logging.INFO, mode
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-DESCRIPTION: Decorator that can auto detect a logger passed in to a function (args or kwargs) or is a member of that 
+DESCRIPTION: Decorator that can auto detect a logger passed in to a function (args or kwargs) or is a member of that
                 functions class. It uses a default logger if neither are present. It then logs all input args for that
                 function at 'FUNCTION_ARG_LOGGING_LEVEL'. Additionally, it catches any exceptions raised to make sure
                 they make it into the log and also provide us with a mini 'stack trace' if the caller functions also
@@ -65,7 +65,7 @@ def log_func(_func=None):
                 # Only calc args string if we will be doing it.
                 if logger.isEnabledFor(Settings.FUNCTION_ARG_LOGGING_LEVEL):
                     args_kwargs_sep = ", ".join([repr(a) for a in args] + [f"{k}={v!r}" for k, v in kwargs.items()])
-                    logger.log(Settings.FUNCTION_ARG_LOGGING_LEVEL, f"_function {func.__name__} " \
+                    logger.log(Settings.FUNCTION_ARG_LOGGING_LEVEL, f"_function {func.__name__} "
                                                                     f"called with {args_kwargs_sep}")
             except Exception:
                 pass
@@ -77,7 +77,7 @@ def log_func(_func=None):
                 logger.error(f"Exception raised in {func.__name__}. exception: {str(e)}", exc_info=True)
                 raise e
         return wrapper
-
+    
     if _func is None:
         return decorator_log
     else:

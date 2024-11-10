@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: 'v0.910'
+    hooks:
+      - id: mypy
+  - repo: https://github.com/PyCQA/pylint
+    rev: 'v2.12.2'
+    hooks:
+      - id: pylint
+  - repo: https://github.com/pycqa/flake8
+    rev: '3.9.2'
+    hooks:
+      - id: flake8
+
+
+# mypy your_project/
+# pylint your_project/
+# flake8 your_project/
+
+
+# pyflakes your_project/
