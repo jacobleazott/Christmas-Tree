@@ -41,7 +41,10 @@ OUTPUT: Same size hsv_array, just with RGB values 0-255 gamma corrected.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def hsv_to_rgb_gamma_corrected(hsv_array: np.ndarray) -> np.ndarray:
     # Unpack the HSV array into separate H, S, V components
-    h, s, v = hsv_array[:, 0], hsv_array[:, 1], hsv_array[:, 2]
+    if hsv_array.ndim == 1:
+        h, s, v = hsv_array
+    else:
+        h, s, v = hsv_array[:, 0], hsv_array[:, 1], hsv_array[:, 2]
     
     # Scale hue to [0, 6)
     h = h * 6

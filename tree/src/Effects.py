@@ -30,11 +30,10 @@ from Led_Controller import LEDController
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Collection of LED effects and the handler of our LEDController.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-class LEDEffects(LogAllMethods):
+class LEDEffects():
     # Type annotations for class attributes
     logger: logging.Logger
     pixel_data: np.ndarray
-    min_and_max: np.ndarray
     led_controller: LEDController
     run_effect: bool
     
@@ -97,6 +96,7 @@ class LEDEffects(LogAllMethods):
         # Convert all HSV frames to gamma corrected RGB values
         rgb_frames = CH.hsv_to_rgb_gamma_corrected(hsv_values.reshape(-1, 3)).reshape(num_steps, -1, 3)
         
+        print("RGB BOIS ", rgb_frames.shape)
         self.led_controller.update_leds(rgb_frames)
 
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
@@ -195,6 +195,58 @@ class LEDEffects(LogAllMethods):
         # Gracefully fade out remaining pixels
         while any(fade[2] > fade_threshold for fade in hsv_values):
             _fade_helper()
+            
+    ####################################################################
+    ####################################################################
+    ####################################################################
+    
+    def rotating_plane(self, speed: float, num_rotations: int) -> None:
+        num_frames = int(num_rotations * 360.0 / speed)
+        frame_numbers = np.arange(num_frames).reshape(-1, 1)
+        pixel_frames = np.zeros((num_frames, Settings.NUM_LEDS, 3), dtype=np.uint8)
+        hue = np.random.uniform(0.0, 1.0)
+
+        while self.run_effect:
+            # Randomly rotate coordiantes than convert to polar just for theta values
+            initial_coords = MH.convert_3d_coords_to_2d_polar(
+                MH.rotate_coordinates(coordinates, np.random.uniform(0, 2 * np.pi, 3))
+                , 0)[:, 1] + 180.0
+            
+            # Update coords_over_time by adding the frame offsets
+            coords_over_time = (initial_coords + (frame_numbers * speed)) % 360
+
+            plane_condition = coords_over_time > 180
+            pixel_frames[plane_condition] = CH.hsv_to_rgb_gamma_corrected(np.array([[hue, 1.0, 1.0]]))
+            pixel_frames[~plane_condition] = CH.hsv_to_rgb_gamma_corrected(np.array([[(hue + 0.5), 1.0, 1.0]]))
+            
+            hue = CH.random_hue_away_from(hue)
+
+            self.led_controller.update_leds(pixel_frames)
+            
+    def rotating_rainbow(self, speed: float, rotations: int, hue_thickness: float) -> None:
+        # Rotate points
+        
+        xy_coords = coordinates[:, :2]
+        
+        while self.run_effect:
+            for angle in range(0, 360, speed):
+                angle_rad = np.deg2rad(angle)
+                # Create the rotation matrix using the angle in radians
+                rotation_matrix = np.array([
+                    [np.cos(angle_rad), -np.sin(angle_rad)],
+                    [np.sin(angle_rad), np.cos(angle_rad)]
+                ])
+
+                # Apply the rotation to the xy coordinates
+                rotated_coords = np.dot(xy_coords, rotation_matrix.T)
+                
+                height = rotated_coords[:, 0].max() - rotated_coords[:, 0].min()
+                distances = np.abs(rotated_coords[:, 0])  # The x-coordinate gives the distance from the plane
+                hues = ((distances / (height * hue_thickness)) + (angle / 360.0)) % 1.0
+                hsv_values = np.column_stack((hues, np.ones(Settings.NUM_LEDS), np.ones(Settings.NUM_LEDS)))
+                rgb_values = CH.hsv_to_rgb_gamma_corrected(hsv_values)
+                
+                self.led_controller.update_leds(rgb_values)
 
 
 if __name__ == "__main__":

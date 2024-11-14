@@ -24,7 +24,7 @@ class SettingsClass:
     NUM_LEDS: int       = 650       # Number of LED pixels
     LED_FPS: int        = 35        # Number of updates per second for our LED strip.
     LED_PIN: int        = 18        # GPIO pin connected to the pixels (must support PWM or PCM)
-    LED_BRIGHTNESS: int = 40        # Brightness of LEDs (0-255)
+    LED_BRIGHTNESS: int = 255        # Brightness of LEDs (0-255)
     LED_FREQ_HZ: int    = 800000    # LED signal frequency in hertz (usually 800kHz)
     LED_DMA: int        = 10        # DMA channel to use for generating signal (try 10)
     LED_INVERT: bool    = False     # True to invert the signal (when using NPN transistor level shift)
@@ -32,7 +32,7 @@ class SettingsClass:
     LED_ORDER: str      = "GRB"     # Pixel color order (typically 'GRB')
     
     # Internal Implementation Settings
-    UPDATE_QUEUE_SIZE: int = 120     # Number of updates we can "preprocess" before waiting to calculate further
+    UPDATE_QUEUE_SIZE: int = 120    # Number of updates we can "preprocess" before waiting to calculate further
     
     GAMMA_RED: float    = 2.0       # Gamma correction value for 'red'.
     GAMMA_GREEN: float  = 1.8       # Gamma correction value for 'green'.

@@ -84,7 +84,7 @@ class LEDController(LogAllMethods):
             self.packed_colors[self.valid_led_mask] = (
                 (data[self.valid_led_mask, 1].astype(np.uint32) << 16)   # Green
                 | (data[self.valid_led_mask, 0].astype(np.uint32) << 8)  # Red
-                | data[self.valid_led_mask, 2].astype(np.uint32))        # Blue
+                |  data[self.valid_led_mask, 2].astype(np.uint32))        # Blue
             
             packed_list = self.packed_colors.tolist()
             
@@ -113,13 +113,13 @@ class LEDController(LogAllMethods):
     def update_leds(self, led_array: np.ndarray) -> None:
         # Ensure led_array is a NumPy array of the correct dtype
         assert isinstance(led_array, np.ndarray) and led_array.dtype == np.uint8
-        
+
         # Check if led_array is a batch of frames or a single frame
         if led_array.ndim == 2:  # Single frame, shape should be (NUM_LEDS, 3)
-            self.update_queue.put(led_array)
+            self.update_queue.put(led_array.copy())
         elif led_array.ndim == 3:  # Multiple frames, shape should be (num_frames, NUM_LEDS, 3)
             for frame in led_array:
-                self.update_queue.put(frame)
+                self.update_queue.put(frame.copy())
         else:
             raise ValueError("led_array must be a 2D or 3D array representing RGB frames.")
 

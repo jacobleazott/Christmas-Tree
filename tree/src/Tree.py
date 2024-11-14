@@ -13,12 +13,15 @@ from Effects import LEDEffects
 def main():
     led_effects = LEDEffects()
     while True:
+        led_effects.run_effect_for_x_seconds(led_effects.rotating_rainbow, duration=30, args=(2, 2, 1.1))
+        # led_effects.run_effect_for_x_seconds(led_effects.rotating_plane, duration=30, args=(5.0, 2))
+        
+        # led_effects.run_effect_for_x_seconds(led_effects.random_plane, duration=10, args=(50,))
         # led_effects.run_effect_for_x_seconds(led_effects.solid_color_rainbow, duration=5, args=(5,))
         # led_effects.run_effect_for_x_seconds(led_effects.radial_rainbow, duration=2, args=(0, 5, 1.0))
         # led_effects.run_effect_for_x_seconds(led_effects.radial_rainbow, duration=2, args=(0, -5, 1.0))
         # led_effects.run_effect_for_x_seconds(led_effects.radial_rainbow, duration=5, args=(1, 5, 1.0))
         # led_effects.run_effect_for_x_seconds(led_effects.radial_rainbow, duration=5, args=(2, 5, 0.5))
-        led_effects.run_effect_for_x_seconds(led_effects.random_plane, duration=10, args=(50,))
         led_effects.run_effect_for_x_seconds(led_effects.axis_rainbow, duration=2, args=(0, -0.01, 0.5))
         led_effects.run_effect_for_x_seconds(led_effects.axis_rainbow, duration=2, args=(0, 0.01, 0.5))
         led_effects.run_effect_for_x_seconds(led_effects.axis_rainbow, duration=2, args=(1, -0.01, 0.5))
