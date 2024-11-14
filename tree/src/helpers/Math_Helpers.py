@@ -42,6 +42,17 @@ def rotate_coordinates(coords: np.ndarray, angles: np.ndarray) -> np.ndarray:
     return np.dot(coords, rot_matrix.T)  # Dot product for each coordinate
 
 
+def rotate_2d_coords(coords: np.ndarray, angle: float) -> np.ndarray:
+    angle_rad = np.deg2rad(angle)
+
+    rotation_matrix = np.array([
+        [np.cos(angle_rad), -np.sin(angle_rad)],
+        [np.sin(angle_rad), np.cos(angle_rad)]
+    ])
+
+    return np.dot(coords, rotation_matrix.T)
+
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 DESCRIPTION: Takes an array of 2D cartesian 'coords' and converts them into polar coords.
 INPUT: coords - XY values of our cartestion coordinates we will be converting.

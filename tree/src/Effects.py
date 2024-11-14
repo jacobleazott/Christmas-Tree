@@ -96,7 +96,6 @@ class LEDEffects():
         # Convert all HSV frames to gamma corrected RGB values
         rgb_frames = CH.hsv_to_rgb_gamma_corrected(hsv_values.reshape(-1, 3)).reshape(num_steps, -1, 3)
         
-        print("RGB BOIS ", rgb_frames.shape)
         self.led_controller.update_leds(rgb_frames)
 
     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""''"""
@@ -224,30 +223,24 @@ class LEDEffects():
             self.led_controller.update_leds(pixel_frames)
             
     def rotating_rainbow(self, speed: float, rotations: int, hue_thickness: float) -> None:
-        # Rotate points
-        
-        xy_coords = coordinates[:, :2]
+        num_frames = int(360.0 / np.abs(speed))
+        angles = np.linspace(0.0, np.copysign(360, speed), num_frames, endpoint=False)
+        frames = np.zeros((num_frames, Settings.NUM_LEDS, 3), dtype=np.uint8)
         
         while self.run_effect:
-            for angle in range(0, 360, speed):
-                angle_rad = np.deg2rad(angle)
-                # Create the rotation matrix using the angle in radians
-                rotation_matrix = np.array([
-                    [np.cos(angle_rad), -np.sin(angle_rad)],
-                    [np.sin(angle_rad), np.cos(angle_rad)]
-                ])
-
-                # Apply the rotation to the xy coordinates
-                rotated_coords = np.dot(xy_coords, rotation_matrix.T)
-                
+            coords = MH.rotate_coordinates(coordinates, np.random.uniform(0, 2 * np.pi, 3))[:, :2]
+    
+            for idx, angle in enumerate(angles):
+                rotated_coords = MH.rotate_2d_coords(coords, angle)
+                distances = np.abs(rotated_coords[:, 0])
                 height = rotated_coords[:, 0].max() - rotated_coords[:, 0].min()
-                distances = np.abs(rotated_coords[:, 0])  # The x-coordinate gives the distance from the plane
                 hues = ((distances / (height * hue_thickness)) + (angle / 360.0)) % 1.0
                 hsv_values = np.column_stack((hues, np.ones(Settings.NUM_LEDS), np.ones(Settings.NUM_LEDS)))
-                rgb_values = CH.hsv_to_rgb_gamma_corrected(hsv_values)
-                
-                self.led_controller.update_leds(rgb_values)
+                frames[idx::num_frames] = CH.hsv_to_rgb_gamma_corrected(hsv_values)
 
+            # Put LED frames onto queue, "rotations" many times
+            self.led_controller.update_leds(np.tile(frames, (rotations, 1, 1)))
+            
 
 if __name__ == "__main__":
     led_effects = LEDEffects()
